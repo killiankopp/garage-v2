@@ -5,7 +5,7 @@
 const char* ssid = "REPLACE_ME";
 const char* password = "REPLACE_ME";
 
-#define RELAY_PIN 16
+#define RELAY_1_PIN 16
 #define SENSOR_CLOSED_PIN 18  // Sensor for "closed" position
 #define SENSOR_OPEN_PIN 19    // Sensor for "open" position
 
@@ -22,14 +22,37 @@ enum GateState {
 GateState lastState = UNKNOWN;
 
 void handleRoot() {
-  server.send(200, "text/plain", "ESP32 online!");
+  server.send(200, "text/plain", "ESP32 garage online!");
 }
 
-void handleRelayImpulse() {
-  digitalWrite(RELAY_PIN, HIGH);
+void handleRelay1Impulse() {
+  digitalWrite(RELAY_1_PIN, HIGH);
   delay(1000);
-  digitalWrite(RELAY_PIN, LOW);
-  server.send(200, "text/plain", "Relay activated");
+  digitalWrite(RELAY_1_PIN, LOW);
+}
+
+// Route to open the gate
+void handleGateOpen() {
+  GateState currentState = readGateState();
+  
+  if (currentState != OPEN) {
+    handleRelay1Impulse();
+    server.send(200, "text/plain", "Gate opening command sent");
+  } else {
+    server.send(200, "text/plain", "Gate is already open");
+  }
+}
+
+// Route to close the gate
+void handleGateClose() {
+  GateState currentState = readGateState();
+  
+  if (currentState != CLOSED) {
+    handleRelay1Impulse();
+    server.send(200, "text/plain", "Gate closing command sent");
+  } else {
+    server.send(200, "text/plain", "Gate is already closed");
+  }
 }
 
 // Function to read gate position
@@ -91,8 +114,8 @@ void setup() {
   Serial.begin(115200);
   
   // Relay configuration
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW); // Relay off by default
+  pinMode(RELAY_1_PIN, OUTPUT);
+  digitalWrite(RELAY_1_PIN, LOW); // Relay off by default
   
   // Sensor configuration with internal pull-up
   pinMode(SENSOR_CLOSED_PIN, INPUT_PULLUP);
@@ -110,7 +133,8 @@ void setup() {
 
   // HTTP routes
   server.on("/", handleRoot);
-  server.on("/relay/1/impulse", handleRelayImpulse);
+  server.on("/gate/open", handleGateOpen);
+  server.on("/gate/close", handleGateClose);
   server.on("/gate/status", handleGateStatus);
 
   server.begin();
