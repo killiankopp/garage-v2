@@ -97,8 +97,10 @@ void handleGateClose() {
 
 // Function to read gate position
 GateState readGateState() {
-  bool sensorClosed = !digitalRead(SENSOR_CLOSED_PIN);  // Inverted due to pull-up
-  bool sensorOpen = !digitalRead(SENSOR_OPEN_PIN);      // Inverted due to pull-up
+  // When gate is NEAR sensor: circuit closes -> digitalRead() = LOW -> sensor active = true
+  // When gate is FAR from sensor: circuit opens -> digitalRead() = HIGH (pull-up) -> sensor active = false
+  bool sensorClosed = !digitalRead(SENSOR_CLOSED_PIN);  // true when gate is near "closed" sensor
+  bool sensorOpen = !digitalRead(SENSOR_OPEN_PIN);      // true when gate is near "open" sensor
   
   if (sensorClosed && !sensorOpen) {
     return CLOSED;
@@ -138,8 +140,8 @@ void triggerAlert(const String& message) {
 
 // Route to get detailed state (JSON)
 void handleGateStatus() {
-  bool sensorClosed = !digitalRead(SENSOR_CLOSED_PIN);
-  bool sensorOpen = !digitalRead(SENSOR_OPEN_PIN);
+  bool sensorClosed = !digitalRead(SENSOR_CLOSED_PIN);  // true when gate is near "closed" sensor
+  bool sensorOpen = !digitalRead(SENSOR_OPEN_PIN);      // true when gate is near "open" sensor
   GateState state = readGateState();
   
   String json = "{";
