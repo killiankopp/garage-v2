@@ -9,6 +9,11 @@ const char* password = "REPLACE_ME";
 #define SENSOR_CLOSED_PIN 18  // Sensor for "closed" position
 #define SENSOR_OPEN_PIN 19    // Sensor for "open" position
 
+// Timing configuration (in milliseconds)
+const unsigned long OPENING_TIMEOUT = 15000;  // 15 seconds to open
+const unsigned long CLOSING_TIMEOUT = 15000;  // 15 seconds to close
+const unsigned long AUTO_CLOSE_DELAY = 180000;  // 3 minutes auto-close delay
+
 // Create server on port 80
 WebServer server(80);
 
@@ -19,10 +24,29 @@ enum GateState {
   UNKNOWN
 };
 
+// Operation states for timeout monitoring
+enum OperationState {
+  IDLE,
+  OPENING,
+  CLOSING
+};
+
 GateState lastState = UNKNOWN;
+OperationState currentOperation = IDLE;
+unsigned long operationStartTime = 0;
+GateState expectedState = UNKNOWN;
+bool alertTriggered = false;
+
+// Auto-close mechanism
+unsigned long gateOpenedTime = 0;
+bool autoCloseEnabled = false;
 
 void handleRoot() {
   server.send(200, "text/plain", "ESP32 garage online!");
+}
+
+void handleHealth() {
+  server.send(200, "text/plain", "OK");
 }
 
 void handleRelay1Impulse() {
@@ -37,7 +61,15 @@ void handleGateOpen() {
   
   if (currentState != OPEN) {
     handleRelay1Impulse();
+    
+    // Start timeout monitoring
+    currentOperation = OPENING;
+    operationStartTime = millis();
+    expectedState = OPEN;
+    alertTriggered = false;
+    
     server.send(200, "text/plain", "Gate opening command sent");
+    Serial.println("Gate opening initiated - timeout monitoring started");
   } else {
     server.send(200, "text/plain", "Gate is already open");
   }
@@ -49,7 +81,15 @@ void handleGateClose() {
   
   if (currentState != CLOSED) {
     handleRelay1Impulse();
+    
+    // Start timeout monitoring
+    currentOperation = CLOSING;
+    operationStartTime = millis();
+    expectedState = CLOSED;
+    alertTriggered = false;
+    
     server.send(200, "text/plain", "Gate closing command sent");
+    Serial.println("Gate closing initiated - timeout monitoring started");
   } else {
     server.send(200, "text/plain", "Gate is already closed");
   }
@@ -89,6 +129,13 @@ void handleGateState() {
   server.send(200, "text/plain", response);
 }
 
+// Function to trigger alert
+void triggerAlert(const String& message) {
+  Serial.println("ALERT: " + message);
+  alertTriggered = true;
+  // Here you could add other alert mechanisms (email, push notification, etc.)
+}
+
 // Route to get detailed state (JSON)
 void handleGateStatus() {
   bool sensorClosed = !digitalRead(SENSOR_CLOSED_PIN);
@@ -104,7 +151,27 @@ void handleGateStatus() {
   }
   json += "\",";
   json += "\"sensor_closed\":" + String(sensorClosed ? "true" : "false") + ",";
-  json += "\"sensor_open\":" + String(sensorOpen ? "true" : "false");
+  json += "\"sensor_open\":" + String(sensorOpen ? "true" : "false") + ",";
+  json += "\"operation\":\"";
+  switch(currentOperation) {
+    case IDLE: json += "idle"; break;
+    case OPENING: json += "opening"; break;
+    case CLOSING: json += "closing"; break;
+  }
+  json += "\",";
+  if (currentOperation != IDLE) {
+    unsigned long elapsed = millis() - operationStartTime;
+    json += "\"operation_time\":" + String(elapsed) + ",";
+    unsigned long timeout = (currentOperation == OPENING) ? OPENING_TIMEOUT : CLOSING_TIMEOUT;
+    json += "\"timeout_remaining\":" + String(timeout > elapsed ? timeout - elapsed : 0) + ",";
+  }
+  json += "\"alert_active\":" + String(alertTriggered ? "true" : "false") + ",";
+  json += "\"auto_close_enabled\":" + String(autoCloseEnabled ? "true" : "false");
+  if (autoCloseEnabled && state == OPEN) {
+    unsigned long elapsed = millis() - gateOpenedTime;
+    json += ",\"auto_close_time\":" + String(elapsed);
+    json += ",\"auto_close_remaining\":" + String(AUTO_CLOSE_DELAY > elapsed ? AUTO_CLOSE_DELAY - elapsed : 0);
+  }
   json += "}";
   
   server.send(200, "application/json", json);
@@ -133,6 +200,7 @@ void setup() {
 
   // HTTP routes
   server.on("/", handleRoot);
+  server.on("/health", handleHealth);
   server.on("/gate/open", handleGateOpen);
   server.on("/gate/close", handleGateClose);
   server.on("/gate/status", handleGateStatus);
@@ -153,16 +221,63 @@ void setup() {
 void loop() {
   server.handleClient();
   
-  // Monitor state changes (optional)
+  // Monitor state changes
   GateState currentState = readGateState();
   if (currentState != lastState) {
     Serial.print("State change detected: ");
     switch(currentState) {
-      case CLOSED: Serial.println("CLOSED"); break;
-      case OPEN: Serial.println("OPEN"); break;
-      case UNKNOWN: Serial.println("UNKNOWN"); break;
+      case CLOSED: 
+        Serial.println("CLOSED"); 
+        // Reset auto-close when gate is closed
+        autoCloseEnabled = false;
+        break;
+      case OPEN: 
+        Serial.println("OPEN");
+        // Start auto-close timer when gate becomes open
+        gateOpenedTime = millis();
+        autoCloseEnabled = true;
+        Serial.println("Auto-close timer started - gate will close in " + String(AUTO_CLOSE_DELAY/1000) + " seconds");
+        break;
+      case UNKNOWN: 
+        Serial.println("UNKNOWN"); 
+        break;
     }
     lastState = currentState;
+    
+    // Check if operation completed successfully
+    if (currentOperation != IDLE && currentState == expectedState) {
+      Serial.println("Operation completed successfully");
+      currentOperation = IDLE;
+      alertTriggered = false;
+    }
+  }
+  
+  // Check for timeout during operations
+  if (currentOperation != IDLE) {
+    unsigned long elapsed = millis() - operationStartTime;
+    unsigned long timeout = (currentOperation == OPENING) ? OPENING_TIMEOUT : CLOSING_TIMEOUT;
+    
+    if (elapsed >= timeout && !alertTriggered) {
+      String operationName = (currentOperation == OPENING) ? "opening" : "closing";
+      String alertMessage = "Timeout: Gate " + operationName + " did not complete within " + String(timeout/1000) + " seconds";
+      triggerAlert(alertMessage);
+    }
+  }
+  
+  // Check for auto-close
+  if (autoCloseEnabled && currentState == OPEN && currentOperation == IDLE) {
+    unsigned long elapsed = millis() - gateOpenedTime;
+    if (elapsed >= AUTO_CLOSE_DELAY) {
+      Serial.println("Auto-close triggered - closing gate after " + String(AUTO_CLOSE_DELAY/1000) + " seconds");
+      
+      // Initiate closing
+      handleRelay1Impulse();
+      currentOperation = CLOSING;
+      operationStartTime = millis();
+      expectedState = CLOSED;
+      alertTriggered = false;
+      autoCloseEnabled = false;  // Disable auto-close to prevent repeated triggers
+    }
   }
   
   delay(100); // Small pause to avoid spam
