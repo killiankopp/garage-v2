@@ -68,11 +68,11 @@ void handleGateOpen() {
     expectedState = OPEN;
     alertTriggered = false;
     
-    server.send(200, "text/plain", "Gate opening command sent");
     Serial.println("Gate opening initiated - timeout monitoring started");
-  } else {
-    server.send(200, "text/plain", "Gate is already open");
   }
+  
+  // Return current status in JSON format
+  handleGateStatus();
 }
 
 // Route to close the gate
@@ -88,11 +88,11 @@ void handleGateClose() {
     expectedState = CLOSED;
     alertTriggered = false;
     
-    server.send(200, "text/plain", "Gate closing command sent");
     Serial.println("Gate closing initiated - timeout monitoring started");
-  } else {
-    server.send(200, "text/plain", "Gate is already closed");
   }
+  
+  // Return current status in JSON format
+  handleGateStatus();
 }
 
 // Function to read gate position
@@ -111,26 +111,6 @@ GateState readGateState() {
   }
 }
 
-// Route to get gate state (simple text)
-void handleGateState() {
-  GateState state = readGateState();
-  String response;
-  
-  switch(state) {
-    case CLOSED:
-      response = "closed";
-      break;
-    case OPEN:
-      response = "open";
-      break;
-    case UNKNOWN:
-      response = "unknown";
-      break;
-  }
-  
-  server.send(200, "text/plain", response);
-}
-
 // Function to trigger alert
 void triggerAlert(const String& message) {
   Serial.println("ALERT: " + message);
@@ -146,34 +126,41 @@ void handleGateStatus() {
   
   String json = "{";
   json += "\"status\":\"";
-  switch(state) {
-    case CLOSED: json += "closed"; break;
-    case OPEN: json += "open"; break;
-    case UNKNOWN: json += "unknown"; break;
+  
+  // Priority: ongoing operations override physical state
+  if (currentOperation == OPENING) {
+    json += "opening";
+  } else if (currentOperation == CLOSING) {
+    json += "closing";
+  } else {
+    // No operation, return physical state
+    switch(state) {
+      case CLOSED: json += "closed"; break;
+      case OPEN: json += "open"; break;
+      case UNKNOWN: json += "unknown"; break;
+    }
   }
+  
   json += "\",";
   json += "\"sensor_closed\":" + String(sensorClosed ? "true" : "false") + ",";
   json += "\"sensor_open\":" + String(sensorOpen ? "true" : "false") + ",";
-  json += "\"operation\":\"";
-  switch(currentOperation) {
-    case IDLE: json += "idle"; break;
-    case OPENING: json += "opening"; break;
-    case CLOSING: json += "closing"; break;
-  }
-  json += "\",";
+  
   if (currentOperation != IDLE) {
     unsigned long elapsed = millis() - operationStartTime;
     json += "\"operation_time\":" + String(elapsed) + ",";
     unsigned long timeout = (currentOperation == OPENING) ? OPENING_TIMEOUT : CLOSING_TIMEOUT;
     json += "\"timeout_remaining\":" + String(timeout > elapsed ? timeout - elapsed : 0) + ",";
   }
+  
   json += "\"alert_active\":" + String(alertTriggered ? "true" : "false") + ",";
   json += "\"auto_close_enabled\":" + String(autoCloseEnabled ? "true" : "false");
-  if (autoCloseEnabled && state == OPEN) {
+  
+  if (autoCloseEnabled && state == OPEN && currentOperation == IDLE) {
     unsigned long elapsed = millis() - gateOpenedTime;
     json += ",\"auto_close_time\":" + String(elapsed);
     json += ",\"auto_close_remaining\":" + String(AUTO_CLOSE_DELAY > elapsed ? AUTO_CLOSE_DELAY - elapsed : 0);
   }
+  
   json += "}";
   
   server.send(200, "application/json", json);
