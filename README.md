@@ -2,7 +2,52 @@
 
 Contrôleur intelligent de portail basé sur ESP32 avec API REST, surveillance de position, timeouts et fermeture automatique.
 
-## 🔧 Fonctionnalités
+## � Démarrage rapide
+
+### 1. Configuration
+Créez un fichier `.env` à la racine :
+```bash
+WIFI_SSID=VotreSSID
+WIFI_PASSWORD=VotrePassword
+KEYCLOAK_SERVER_URL=https://your-keycloak-server
+KEYCLOAK_REALM=your-realm
+KEYCLOAK_CLIENT_ID=your-client-id
+KAFKA_BROKER_URL=your-kafka-broker:9092
+KAFKA_TOPIC=garage-events
+KAFKA_UNAUTHORIZED_TOPIC=garage-unauthorized
+```
+
+### 2. Compilation et upload
+
+```bash
+# Compiler et uploader sur l'ESP32
+./scripts/build.sh flash
+
+# Ou étape par étape :
+./scripts/build.sh build     # Compiler seulement
+./scripts/build.sh upload    # Uploader sur l'ESP32
+./scripts/build.sh monitor   # Monitorer la sortie série
+```
+
+### 3. Scripts disponibles
+
+| Script | Description |
+|--------|-------------|
+| `./scripts/build.sh` | Script principal de build avec PlatformIO CLI |
+| `./scripts/vscode_build.sh` | Script optimisé pour VS Code |
+| `./scripts/run_tests.sh` | Lancement des tests unitaires |
+
+### 4. Tests
+
+```bash
+# Lancer tous les tests
+./scripts/build.sh test
+
+# Tests spécifiques
+pio test -e native
+```
+
+## �🔧 Fonctionnalités
 
 - **Contrôle du portail** via API REST (ouverture/fermeture)
 - **Détection de position** avec 2 capteurs (ouvert/fermé)
@@ -10,6 +55,8 @@ Contrôleur intelligent de portail basé sur ESP32 avec API REST, surveillance d
 - **Fermeture automatique** après 3 minutes d'ouverture
 - **Système d'alertes** en cas de dysfonctionnement
 - **API JSON unifiée** pour tous les retours
+- **Authentification JWT** avec Keycloak
+- **Logging Kafka** pour la surveillance
 
 ## 🛠 Configuration matérielle
 
@@ -204,7 +251,27 @@ pio run --target upload
 pio device monitor
 ```
 
-## 🔐 Sécurité
+## � Organisation du projet
+
+```
+garage-v2/
+├── src/                     # Code source ESP32
+│   ├── main.cpp
+│   └── components/          # Modules du projet
+├── test/                    # Tests unitaires
+├── scripts/                 # Scripts de build et outils
+│   ├── build.sh            # Script principal
+│   ├── vscode_build.sh     # Script pour VS Code
+│   └── run_tests.sh        # Tests
+├── docs/                   # Documentation
+│   ├── ARCHITECTURE.md     # Architecture du projet
+│   ├── AUTHENTICATION.md   # Système d'auth
+│   └── KAFKA_*.md         # Documentation Kafka
+├── platformio.ini          # Configuration PlatformIO
+└── .env                   # Variables d'environnement (local)
+```
+
+## �🔐 Sécurité
 
 - ✅ Le fichier `.env` est dans `.gitignore`
 - ✅ Aucun secret dans le code versionné

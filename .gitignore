@@ -10,3 +10,5 @@
 
 # Fichiers système
 .DS_Store
+
+.venv
