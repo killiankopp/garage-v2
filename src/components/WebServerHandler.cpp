@@ -2,10 +2,16 @@
 #include "Config.h"
 
 WebServerHandler::WebServerHandler(GateController* gateController, GateMonitor* gateMonitor) 
-    : _server(SERVER_PORT), _gateController(gateController), _gateMonitor(gateMonitor) {
+    : _server(SERVER_PORT), _gateController(gateController), _gateMonitor(gateMonitor),
+      _authConfig(nullptr), _authMiddleware(nullptr) {
+}
+
+WebServerHandler::~WebServerHandler() {
+    delete _authMiddleware;
 }
 
 void WebServerHandler::begin() {
+    initializeAuth();
     setupRoutes();
     _server.begin();
     Serial.println("HTTP server started");
@@ -19,6 +25,7 @@ void WebServerHandler::setupRoutes() {
     // Bind methods to this instance
     _server.on("/", [this]() { handleRoot(); });
     _server.on("/health", [this]() { handleHealth(); });
+    _server.on("/auth/info", [this]() { handleAuthInfo(); });
     _server.on("/gate/open", [this]() { handleGateOpen(); });
     _server.on("/gate/close", [this]() { handleGateClose(); });
     _server.on("/gate/status", [this]() { handleGateStatus(); });
@@ -32,7 +39,27 @@ void WebServerHandler::handleHealth() {
     _server.send(200, "text/plain", "OK");
 }
 
+void WebServerHandler::handleAuthInfo() {
+    String json = "{";
+    json += "\"auth_enabled\":" + String(_authConfig && _authConfig->isAuthEnabled() ? "true" : "false");
+    
+    if (_authConfig && _authConfig->isAuthEnabled()) {
+        json += ",\"keycloak_server\":\"" + _authConfig->getKeycloakServerUrl() + "\"";
+        json += ",\"realm\":\"" + _authConfig->getKeycloakRealm() + "\"";
+        json += ",\"client_id\":\"" + _authConfig->getKeycloakClientId() + "\"";
+        json += ",\"protected_routes\":[\"/gate/open\",\"/gate/close\"]";
+    }
+    
+    json += "}";
+    
+    _server.send(200, "application/json", json);
+}
+
 void WebServerHandler::handleGateOpen() {
+    if (!requireAuthentication()) {
+        return;
+    }
+    
     GateState currentState = _gateController->readState();
     
     if (currentState != OPEN) {
@@ -45,6 +72,10 @@ void WebServerHandler::handleGateOpen() {
 }
 
 void WebServerHandler::handleGateClose() {
+    if (!requireAuthentication()) {
+        return;
+    }
+    
     GateState currentState = _gateController->readState();
     
     if (currentState != CLOSED) {
@@ -103,4 +134,35 @@ String WebServerHandler::buildStatusJson() {
     json += "}";
     
     return json;
+}
+
+void WebServerHandler::initializeAuth() {
+    _authConfig = &AuthConfig::getInstance();
+    _authConfig->loadFromEnvironment();
+    
+    if (_authConfig->isAuthEnabled()) {
+        _authMiddleware = new AuthMiddleware(_authConfig);
+        Serial.println("Authentication middleware initialized");
+    } else {
+        Serial.println("Authentication is disabled");
+    }
+}
+
+bool WebServerHandler::requireAuthentication() {
+    if (!_authConfig || !_authConfig->isAuthEnabled()) {
+        return true; // Pas d'auth requise
+    }
+    
+    if (!_authMiddleware) {
+        Serial.println("Auth middleware not initialized");
+        _server.send(500, "application/json", "{\"error\":\"Internal server error\"}");
+        return false;
+    }
+    
+    if (!_authMiddleware->authenticateRequest(&_server)) {
+        _authMiddleware->sendUnauthorizedResponse(&_server);
+        return false;
+    }
+    
+    return true;
 }

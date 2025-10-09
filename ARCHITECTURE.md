@@ -113,15 +113,3 @@ pio run
   "auto_close_remaining": 165000
 }
 ```
-
-## Tests et Validation
-
-Cette architecture facilite grandement les tests :
-- Chaque composant peut être testé individuellement
-- Mocking facile des dépendances
-- Tests d'intégration simplifiés
-
-## Migration depuis l'Ancien Code
-
-L'ancien code monolithique a été préservé dans `src/main_old.cpp` pour référence.
-La nouvelle architecture maintient la même fonctionnalité tout en améliorant la structure.
