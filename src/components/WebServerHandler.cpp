@@ -3,15 +3,18 @@
 
 WebServerHandler::WebServerHandler(GateController* gateController, GateMonitor* gateMonitor) 
     : _server(SERVER_PORT), _gateController(gateController), _gateMonitor(gateMonitor),
-      _authConfig(nullptr), _authMiddleware(nullptr) {
+      _authConfig(nullptr), _authMiddleware(nullptr), _kafkaConfig(nullptr), _kafkaLogger(nullptr) {
 }
 
 WebServerHandler::~WebServerHandler() {
     delete _authMiddleware;
+    delete _kafkaLogger;
+    delete _kafkaConfig;
 }
 
 void WebServerHandler::begin() {
     initializeAuth();
+    initializeKafka();
     setupRoutes();
     _server.begin();
     Serial.println("HTTP server started");
@@ -56,7 +59,12 @@ void WebServerHandler::handleAuthInfo() {
 }
 
 void WebServerHandler::handleGateOpen() {
-    if (!requireAuthentication()) {
+    bool authenticated = requireAuthentication();
+    
+    // Log l'action (autorisée ou non)
+    logGateAction("open", authenticated);
+    
+    if (!authenticated) {
         return;
     }
     
@@ -72,7 +80,12 @@ void WebServerHandler::handleGateOpen() {
 }
 
 void WebServerHandler::handleGateClose() {
-    if (!requireAuthentication()) {
+    bool authenticated = requireAuthentication();
+    
+    // Log l'action (autorisée ou non)
+    logGateAction("close", authenticated);
+    
+    if (!authenticated) {
         return;
     }
     
@@ -165,4 +178,59 @@ bool WebServerHandler::requireAuthentication() {
     }
     
     return true;
+}
+
+void WebServerHandler::initializeKafka() {
+    _kafkaConfig = new KafkaConfig();
+    _kafkaConfig->initialize();
+    
+    if (_kafkaConfig->isKafkaEnabled() && _kafkaConfig->isValid()) {
+        _kafkaLogger = new KafkaLogger(
+            _kafkaConfig->getBrokerUrl(),
+            _kafkaConfig->getTopic(),
+            _kafkaConfig->getUnauthorizedTopic()
+        );
+        
+        Serial.println("Kafka logger initialized");
+        
+        // Test de connectivité (optionnel)
+        if (_kafkaLogger->testConnection()) {
+            Serial.println("Kafka connection test successful");
+        } else {
+            Serial.println("Warning: Kafka connection test failed");
+        }
+    } else {
+        Serial.println("Kafka logging is disabled");
+    }
+}
+
+void WebServerHandler::logGateAction(const String& action, bool authorized) {
+    if (!_kafkaLogger || !_kafkaConfig || !_kafkaConfig->isKafkaEnabled()) {
+        return; // Kafka non configuré
+    }
+    
+    String sub = "";
+    String name = "";
+    String token = "";
+    
+    // Récupérer les informations du token si l'authentification est activée
+    if (_authMiddleware && _authConfig && _authConfig->isAuthEnabled()) {
+        ValidationResult result = _authMiddleware->getLastValidationResult();
+        sub = result.userId;
+        name = result.username;
+        
+        // Pour les actions non autorisées, récupérer le token complet
+        if (!authorized) {
+            String authHeader = _server.header("Authorization");
+            if (authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            }
+        }
+    }
+    
+    if (authorized) {
+        _kafkaLogger->logAuthorizedAction(action, sub, name);
+    } else {
+        _kafkaLogger->logUnauthorizedAction(action, sub, name, token);
+    }
 }

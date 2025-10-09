@@ -6,6 +6,8 @@
 #include "GateMonitor.h"
 #include "AuthConfig.h"
 #include "AuthMiddleware.h"
+#include "KafkaConfig.h"
+#include "KafkaLogger.h"
 
 class WebServerHandler {
 public:
@@ -20,6 +22,8 @@ private:
     GateMonitor* _gateMonitor;
     AuthConfig* _authConfig;
     AuthMiddleware* _authMiddleware;
+    KafkaConfig* _kafkaConfig;
+    KafkaLogger* _kafkaLogger;
     
     // Route handlers
     void handleRoot();
@@ -36,6 +40,10 @@ private:
     // Authentication helpers
     bool requireAuthentication();
     void initializeAuth();
+    
+    // Kafka logging helpers
+    void initializeKafka();
+    void logGateAction(const String& action, bool authorized);
 };
 
 #endif // WEB_SERVER_HANDLER_H

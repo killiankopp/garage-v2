@@ -3,6 +3,7 @@
         "*.embeddedhtml": "html",
         "plyconfig.json": "jsonc",
         "istream": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "cstdlib": "cpp"
     }
 }
