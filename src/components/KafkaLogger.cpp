@@ -14,9 +14,9 @@ void KafkaLogger::logAuthorizedAction(const String& action, const String& sub, c
     };
     
     String message = buildMessage(log);
-    
+
     Serial.println("Logging authorized action: " + action + " by user: " + name + " (sub: " + sub + ")");
-    
+
     if (!sendMessage(_topic, message)) {
         Serial.println("Failed to send authorized action log to Kafka");
     }
@@ -32,47 +32,60 @@ void KafkaLogger::logUnauthorizedAction(const String& action, const String& sub,
     };
     
     String message = buildMessage(log);
-    
+
     Serial.println("Logging unauthorized action: " + action + " - sub: " + sub + ", name: " + name);
-    
+
     if (!sendMessage(_unauthorizedTopic, message)) {
         Serial.println("Failed to send unauthorized action log to Kafka");
     }
 }
 
-bool KafkaLogger::testConnection() {
-    _httpClient.begin(_brokerUrl + "/health");
-    _httpClient.setTimeout(5000);
-    
-    int httpCode = _httpClient.GET();
-    _httpClient.end();
-    
-    return (httpCode == 200);
-}
-
 bool KafkaLogger::sendMessage(const String& topic, const String& message) {
-    String url = buildKafkaUrl(topic);
+    size_t messageCapacity = message.length() + 256;
+    DynamicJsonDocument messageDoc(messageCapacity);
+    DeserializationError error = deserializeJson(messageDoc, message);
     
-    _httpClient.begin(url);
-    _httpClient.addHeader("Content-Type", "application/json");
-    _httpClient.setTimeout(10000);
-    
-    int httpCode = _httpClient.POST(message);
-    String response = _httpClient.getString();
-    _httpClient.end();
-    
-    if (httpCode == 200 || httpCode == 201) {
-        Serial.println("Message sent to Kafka successfully");
-        return true;
-    } else {
-        Serial.println("Failed to send message to Kafka. HTTP code: " + String(httpCode));
-        Serial.println("Response: " + response);
+    if (error) {
+        Serial.println("Failed to parse Kafka log message: " + String(error.c_str()));
+        Serial.println("Payload: " + message);
         return false;
     }
+
+    DynamicJsonDocument payloadDoc(message.length() + 512);
+    JsonArray records = payloadDoc.createNestedArray("records");
+    JsonObject record = records.createNestedObject();
+    record["value"].set(messageDoc.as<JsonVariant>());
+
+    String payload;
+    serializeJson(payloadDoc, payload);
+
+    String url = buildKafkaUrl(topic);
+
+    _httpClient.begin(url);
+    _httpClient.addHeader("Content-Type", "application/vnd.kafka.json.v2+json");
+    _httpClient.addHeader("Accept", "application/vnd.kafka.v2+json, application/vnd.kafka+json, application/json");
+    _httpClient.setTimeout(10000);
+
+    int httpCode = _httpClient.POST(payload);
+    String response = _httpClient.getString();
+    _httpClient.end();
+
+    if (httpCode >= 200 && httpCode < 300) {
+        Serial.println("Kafka message accepted (HTTP " + String(httpCode) + ")");
+        return true;
+    }
+
+    Serial.println("Failed to send message to Kafka. HTTP code: " + String(httpCode));
+    if (!response.isEmpty()) {
+        Serial.println("Response: " + response);
+    }
+    Serial.println("Request payload: " + payload);
+    return false;
 }
 
 String KafkaLogger::buildMessage(const GateActionLog& log) {
-    DynamicJsonDocument doc(1024);
+    size_t capacity = 256 + log.action.length() + log.sub.length() + log.name.length() + log.token.length();
+    DynamicJsonDocument doc(capacity);
     
     doc["timestamp"] = millis();
     doc["action"] = log.action;
@@ -99,7 +112,12 @@ String KafkaLogger::buildMessage(const GateActionLog& log) {
 }
 
 String KafkaLogger::buildKafkaUrl(const String& topic) {
-    // Assume une API REST Kafka standard
-    // L'URL exacte peut dépendre de votre setup Kafka
-    return _brokerUrl + "/topics/" + topic + "/messages";
+    String baseUrl = _brokerUrl;
+    if (baseUrl.endsWith("/")) {
+        baseUrl.remove(baseUrl.length() - 1);
+    }
+    if (baseUrl.endsWith("/topics")) {
+        return baseUrl + "/" + topic;
+    }
+    return baseUrl + "/topics/" + topic;
 }

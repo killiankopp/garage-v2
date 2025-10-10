@@ -50,6 +50,7 @@ KAFKA_UNAUTHORIZED_TOPIC=garage-unauthorized
 Le système respecte le principe de responsabilité unique (SRP) avec les composants suivants :
 
 ### KafkaConfig
+
 - **Responsabilité** : Gestion de la configuration Kafka
 - **Fichiers** : `KafkaConfig.h`, `KafkaConfig.cpp`
 - Charge les variables d'environnement
@@ -57,6 +58,7 @@ Le système respecte le principe de responsabilité unique (SRP) avec les compos
 - Fournit un point d'accès unique aux paramètres Kafka
 
 ### KafkaLogger
+
 - **Responsabilité** : Envoi des messages vers Kafka
 - **Fichiers** : `KafkaLogger.h`, `KafkaLogger.cpp`
 - Construit les messages JSON
@@ -64,6 +66,7 @@ Le système respecte le principe de responsabilité unique (SRP) avec les compos
 - Sépare les actions autorisées et non autorisées
 
 ### WebServerHandler (modifié)
+
 - **Responsabilité étendue** : Intégration du logging dans les handlers de routes
 - Log automatiquement toutes les actions de porte
 - Extrait les informations du token JWT
@@ -72,6 +75,7 @@ Le système respecte le principe de responsabilité unique (SRP) avec les compos
 ## Tests
 
 Des tests unitaires sont disponibles dans :
+
 - `test/test_kafka/test_kafka.cpp` : Tests des composants Kafka
 - `test/test_kafka_integration/test_kafka_integration.cpp` : Tests d'intégration
 
@@ -93,10 +97,15 @@ source load_env.sh && pio run
 ## Dépannage
 
 ### Kafka désactivé
+
 Si les variables d'environnement Kafka ne sont pas définies, le système continue de fonctionner normalement sans logging.
 
 ### Erreurs de connexion
+
 Les erreurs de connexion Kafka sont loggées sur la console série mais n'interrompent pas le fonctionnement normal du système.
 
-### Test de connectivité
-Un test de connectivité Kafka est effectué au démarrage pour valider la configuration.
+### Envoi des messages
+
+- Les messages sont envoyés via le Kafka REST Proxy (`POST /topics/{topic}`)
+- Les payloads utilisent le format `{"records":[{"value":{...}}]}` avec `Content-Type: application/vnd.kafka.json.v2+json`
+- `KAFKA_BROKER_URL` doit pointer vers la racine du proxy REST (ex: `http://10.0.0.48:5996`)

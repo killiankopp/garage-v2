@@ -2,6 +2,12 @@
 
 Contrôleur intelligent de portail basé sur ESP32 avec API REST, surveillance de position, timeouts et fermeture automatique.
 
+## 🚀 Flash
+
+```sh
+./scripts/vscode_build.sh flashs
+```
+
 ## � Démarrage rapide
 
 ### 1. Configuration

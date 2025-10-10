@@ -192,13 +192,6 @@ void WebServerHandler::initializeKafka() {
         );
         
         Serial.println("Kafka logger initialized");
-        
-        // Test de connectivité (optionnel)
-        if (_kafkaLogger->testConnection()) {
-            Serial.println("Kafka connection test successful");
-        } else {
-            Serial.println("Warning: Kafka connection test failed");
-        }
     } else {
         Serial.println("Kafka logging is disabled");
     }

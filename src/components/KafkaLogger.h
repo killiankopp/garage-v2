@@ -22,9 +22,6 @@ public:
     
     // Log une action de porte non autorisée
     void logUnauthorizedAction(const String& action, const String& sub, const String& name, const String& token);
-    
-    // Test de connectivité Kafka
-    bool testConnection();
 
 private:
     String _brokerUrl;
