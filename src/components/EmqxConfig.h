@@ -1,33 +1,41 @@
-#ifndef KAFKA_CONFIG_H
-#define KAFKA_CONFIG_H
+#ifndef EMQX_CONFIG_H
+#define EMQX_CONFIG_H
 
 #include <Arduino.h>
 
-class KafkaConfig {
+class EmqxConfig {
 public:
-    KafkaConfig();
+    EmqxConfig();
     
     // Initialise la configuration depuis les variables d'environnement
     void initialize();
     
     // Getters
-    String getBrokerUrl() const { return _brokerUrl; }
+    String getBrokerHost() const { return _brokerHost; }
+    int getBrokerPort() const { return _brokerPort; }
+    String getUsername() const { return _username; }
+    String getPassword() const { return _password; }
     String getTopic() const { return _topic; }
     String getUnauthorizedTopic() const { return _unauthorizedTopic; }
-    bool isKafkaEnabled() const { return _enabled; }
+    String getClientId() const { return _clientId; }
+    bool isEmqxEnabled() const { return _enabled; }
     
     // Validation
     bool isValid() const;
     void printConfig() const;
 
 private:
-    String _brokerUrl;
+    String _brokerHost;
+    int _brokerPort;
+    String _username;
+    String _password;
     String _topic;
     String _unauthorizedTopic;
+    String _clientId;
     bool _enabled;
     
     // Charge une variable d'environnement
     String loadEnvVar(const String& varName, const String& defaultValue = "");
 };
 
-#endif // KAFKA_CONFIG_H
+#endif // EMQX_CONFIG_H

@@ -3,18 +3,18 @@
 
 WebServerHandler::WebServerHandler(GateController* gateController, GateMonitor* gateMonitor) 
     : _server(SERVER_PORT), _gateController(gateController), _gateMonitor(gateMonitor),
-      _authConfig(nullptr), _authMiddleware(nullptr), _kafkaConfig(nullptr), _kafkaLogger(nullptr) {
+      _authConfig(nullptr), _authMiddleware(nullptr), _emqxConfig(nullptr), _emqxLogger(nullptr) {
 }
 
 WebServerHandler::~WebServerHandler() {
     delete _authMiddleware;
-    delete _kafkaLogger;
-    delete _kafkaConfig;
+    delete _emqxLogger;
+    delete _emqxConfig;
 }
 
 void WebServerHandler::begin() {
     initializeAuth();
-    initializeKafka();
+    initializeEmqx();
     setupRoutes();
     _server.begin();
     Serial.println("HTTP server started");
@@ -22,6 +22,11 @@ void WebServerHandler::begin() {
 
 void WebServerHandler::handleClient() {
     _server.handleClient();
+    
+    // Maintain EMQX connection
+    if (_emqxLogger) {
+        _emqxLogger->loop();
+    }
 }
 
 void WebServerHandler::setupRoutes() {
@@ -180,26 +185,34 @@ bool WebServerHandler::requireAuthentication() {
     return true;
 }
 
-void WebServerHandler::initializeKafka() {
-    _kafkaConfig = new KafkaConfig();
-    _kafkaConfig->initialize();
+void WebServerHandler::initializeEmqx() {
+    _emqxConfig = new EmqxConfig();
+    _emqxConfig->initialize();
     
-    if (_kafkaConfig->isKafkaEnabled() && _kafkaConfig->isValid()) {
-        _kafkaLogger = new KafkaLogger(
-            _kafkaConfig->getBrokerUrl(),
-            _kafkaConfig->getTopic(),
-            _kafkaConfig->getUnauthorizedTopic()
+    if (_emqxConfig->isEmqxEnabled() && _emqxConfig->isValid()) {
+        _emqxLogger = new EmqxLogger(
+            _emqxConfig->getBrokerHost(),
+            _emqxConfig->getBrokerPort(),
+            _emqxConfig->getUsername(),
+            _emqxConfig->getPassword(),
+            _emqxConfig->getClientId(),
+            _emqxConfig->getTopic(),
+            _emqxConfig->getUnauthorizedTopic()
         );
         
-        Serial.println("Kafka logger initialized");
+        if (_emqxLogger->begin()) {
+            Serial.println("EMQX logger initialized and connected");
+        } else {
+            Serial.println("EMQX logger initialized but connection failed");
+        }
     } else {
-        Serial.println("Kafka logging is disabled");
+        Serial.println("EMQX logging is disabled");
     }
 }
 
 void WebServerHandler::logGateAction(const String& action, bool authorized) {
-    if (!_kafkaLogger || !_kafkaConfig || !_kafkaConfig->isKafkaEnabled()) {
-        return; // Kafka non configuré
+    if (!_emqxLogger || !_emqxConfig || !_emqxConfig->isEmqxEnabled()) {
+        return; // EMQX non configuré
     }
     
     String sub = "";
@@ -222,8 +235,8 @@ void WebServerHandler::logGateAction(const String& action, bool authorized) {
     }
     
     if (authorized) {
-        _kafkaLogger->logAuthorizedAction(action, sub, name);
+        _emqxLogger->logAuthorizedAction(action, sub, name);
     } else {
-        _kafkaLogger->logUnauthorizedAction(action, sub, name, token);
+        _emqxLogger->logUnauthorizedAction(action, sub, name, token);
     }
 }

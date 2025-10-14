@@ -6,8 +6,8 @@
 #include "GateMonitor.h"
 #include "AuthConfig.h"
 #include "AuthMiddleware.h"
-#include "KafkaConfig.h"
-#include "KafkaLogger.h"
+#include "EmqxConfig.h"
+#include "EmqxLogger.h"
 
 class WebServerHandler {
 public:
@@ -22,8 +22,8 @@ private:
     GateMonitor* _gateMonitor;
     AuthConfig* _authConfig;
     AuthMiddleware* _authMiddleware;
-    KafkaConfig* _kafkaConfig;
-    KafkaLogger* _kafkaLogger;
+    EmqxConfig* _emqxConfig;
+    EmqxLogger* _emqxLogger;
     
     // Route handlers
     void handleRoot();
@@ -41,8 +41,8 @@ private:
     bool requireAuthentication();
     void initializeAuth();
     
-    // Kafka logging helpers
-    void initializeKafka();
+    // EMQX logging helpers
+    void initializeEmqx();
     void logGateAction(const String& action, bool authorized);
 };
 
