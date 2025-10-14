@@ -18,9 +18,12 @@ WIFI_PASSWORD=VotrePassword
 KEYCLOAK_SERVER_URL=https://your-keycloak-server
 KEYCLOAK_REALM=your-realm
 KEYCLOAK_CLIENT_ID=your-client-id
-KAFKA_BROKER_URL=your-kafka-broker:9092
-KAFKA_TOPIC=garage-events
-KAFKA_UNAUTHORIZED_TOPIC=garage-unauthorized
+EMQX_BROKER_HOST=emqx.amazone.lan
+EMQX_BROKER_PORT=1883
+EMQX_USERNAME=
+EMQX_PASSWORD=
+EMQX_TOPIC=garage/authorized
+EMQX_UNAUTHORIZED_TOPIC=garage/unauthorized
 ```
 
 ### 2. Compilation et upload
