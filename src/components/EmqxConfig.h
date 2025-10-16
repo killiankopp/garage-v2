@@ -1,7 +1,11 @@
 #ifndef EMQX_CONFIG_H
 #define EMQX_CONFIG_H
 
+#ifdef UNIT_TEST
+#include "../../test/mocks/ArduinoMock.h"
+#else
 #include <Arduino.h>
+#endif
 
 class EmqxConfig {
 public:

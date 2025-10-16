@@ -1,10 +1,14 @@
 #ifndef EMQX_LOGGER_H
 #define EMQX_LOGGER_H
 
+#ifdef UNIT_TEST
+#include "../../test/mocks/ArduinoMock.h"
+#else
 #include <Arduino.h>
 #include <WiFiClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#endif
 
 struct GateActionLog {
     String action;      // "open" ou "close"
@@ -13,6 +17,22 @@ struct GateActionLog {
     bool authorized;    // Si l'action était autorisée
     String token;       // Token complet (seulement pour les actions non autorisées)
 };
+
+#ifdef UNIT_TEST
+
+class EmqxLogger {
+public:
+    EmqxLogger(const String&, int, const String&, const String&,
+               const String&, const String&, const String&) {}
+
+    bool begin() { return true; }
+    void loop() {}
+    void logAuthorizedAction(const String&, const String&, const String&) {}
+    void logUnauthorizedAction(const String&, const String&, const String&, const String&) {}
+    bool isConnected() { return true; }
+};
+
+#else
 
 class EmqxLogger {
 public:
@@ -61,5 +81,7 @@ private:
     // MQTT callback (if needed for future features)
     static void mqttCallback(char* topic, byte* payload, unsigned int length);
 };
+
+#endif // UNIT_TEST
 
 #endif // EMQX_LOGGER_H

@@ -1,3 +1,5 @@
+#ifndef UNIT_TEST
+
 #include "EmqxLogger.h"
 #include <WiFi.h>
 
@@ -158,3 +160,5 @@ void EmqxLogger::mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
     Serial.println();
 }
+
+#endif // UNIT_TEST

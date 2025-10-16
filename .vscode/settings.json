@@ -4,6 +4,7 @@
         "plyconfig.json": "jsonc",
         "istream": "cpp",
         "ostream": "cpp",
-        "cstdlib": "cpp"
+        "cstdlib": "cpp",
+        "algorithm": "cpp"
     }
 }

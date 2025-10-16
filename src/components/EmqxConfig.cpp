@@ -1,6 +1,34 @@
 #include "EmqxConfig.h"
+
+#ifndef UNIT_TEST
 #include <WiFi.h>
+#else
+#include <algorithm>
+#endif
+
 #include <cstdlib>
+
+namespace {
+    String sanitizeMac(const String& mac) {
+#ifdef UNIT_TEST
+        String sanitized = mac;
+        sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), ':'), sanitized.end());
+        return sanitized;
+#else
+        String sanitized = mac;
+        sanitized.replace(":", "");
+        return sanitized;
+#endif
+    }
+
+    String intToString(int value) {
+#ifdef UNIT_TEST
+        return std::to_string(value);
+#else
+        return String(value);
+#endif
+    }
+}
 
 EmqxConfig::EmqxConfig() : _brokerPort(1883), _enabled(false) {
 }
@@ -19,10 +47,14 @@ void EmqxConfig::initialize() {
     _unauthorizedTopic = loadEnvVar("EMQX_UNAUTHORIZED_TOPIC", "garage/unauthorized");
     
     // Generate a unique client ID based on ESP32 MAC address
-    _clientId = "ESP32_" + WiFi.macAddress();
-    _clientId.replace(":", "");
+#ifdef UNIT_TEST
+    String mac = "00:00:00:00:TEST";
+#else
+    String mac = WiFi.macAddress();
+#endif
+    _clientId = String("ESP32_") + sanitizeMac(mac);
     
-    _enabled = !_brokerHost.isEmpty();
+    _enabled = _brokerHost.length() > 0;
     
     if (_enabled) {
         Serial.println("EMQX configuration loaded successfully");
@@ -34,11 +66,11 @@ void EmqxConfig::initialize() {
 
 bool EmqxConfig::isValid() const {
     return _enabled && 
-           !_brokerHost.isEmpty() && 
-           _brokerPort > 0 &&
-           !_topic.isEmpty() && 
-           !_unauthorizedTopic.isEmpty() &&
-           !_clientId.isEmpty();
+        _brokerHost.length() > 0 && 
+        _brokerPort > 0 &&
+        _topic.length() > 0 && 
+        _unauthorizedTopic.length() > 0 &&
+        _clientId.length() > 0;
 }
 
 void EmqxConfig::printConfig() const {
@@ -48,14 +80,22 @@ void EmqxConfig::printConfig() const {
     }
     
     Serial.println("EMQX Configuration:");
-    Serial.println("  Broker Host: " + _brokerHost);
-    Serial.println("  Broker Port: " + String(_brokerPort));
-    Serial.println("  Username: " + (_username.isEmpty() ? "(none)" : _username));
-    Serial.println("  Password: " + (_password.isEmpty() ? "(none)" : "***"));
-    Serial.println("  Topic: " + _topic);
-    Serial.println("  Unauthorized Topic: " + _unauthorizedTopic);
-    Serial.println("  Client ID: " + _clientId);
-    Serial.println("  Status: " + String(_enabled ? "Enabled" : "Disabled"));
+    Serial.print("  Broker Host: ");
+    Serial.println(_brokerHost);
+    Serial.print("  Broker Port: ");
+    Serial.println(intToString(_brokerPort));
+    Serial.print("  Username: ");
+    Serial.println(_username.length() == 0 ? String("(none)") : _username);
+    Serial.print("  Password: ");
+    Serial.println(_password.length() == 0 ? String("(none)") : String("***"));
+    Serial.print("  Topic: ");
+    Serial.println(_topic);
+    Serial.print("  Unauthorized Topic: ");
+    Serial.println(_unauthorizedTopic);
+    Serial.print("  Client ID: ");
+    Serial.println(_clientId);
+    Serial.print("  Status: ");
+    Serial.println(_enabled ? String("Enabled") : String("Disabled"));
 }
 
 String EmqxConfig::loadEnvVar(const String& varName, const String& defaultValue) {
@@ -71,7 +111,7 @@ String EmqxConfig::loadEnvVar(const String& varName, const String& defaultValue)
         #ifdef EMQX_BROKER_PORT
             return String(EMQX_BROKER_PORT);
         #else
-            return defaultValue.isEmpty() ? "1883" : defaultValue;
+            return defaultValue.length() == 0 ? "1883" : defaultValue;
         #endif
     } else if (varName == "EMQX_USERNAME") {
         #ifdef EMQX_USERNAME
@@ -89,13 +129,13 @@ String EmqxConfig::loadEnvVar(const String& varName, const String& defaultValue)
         #ifdef EMQX_TOPIC
             return String(EMQX_TOPIC);
         #else
-            return defaultValue.isEmpty() ? "garage/authorized" : defaultValue;
+            return defaultValue.length() == 0 ? "garage/authorized" : defaultValue;
         #endif
     } else if (varName == "EMQX_UNAUTHORIZED_TOPIC") {
         #ifdef EMQX_UNAUTHORIZED_TOPIC
             return String(EMQX_UNAUTHORIZED_TOPIC);
         #else
-            return defaultValue.isEmpty() ? "garage/unauthorized" : defaultValue;
+            return defaultValue.length() == 0 ? "garage/unauthorized" : defaultValue;
         #endif
     }
     
