@@ -20,12 +20,13 @@ mkdir -p $TEST_DIR
 run_test() {
     local test_name=$1
     local test_file=$2
+    local extra_sources=${3:-}
     
     echo -e "${YELLOW}Compilation de $test_name...${NC}"
     
     # Compiler le test
     g++ -std=c++17 -I./src -I./test -I./test/mocks -DUNIT_TEST \
-        $test_file \
+        $test_file $extra_sources \
         -o $TEST_DIR/$test_name
     
     if [ $? -ne 0 ]; then
@@ -68,10 +69,17 @@ if ! run_test "test_logic" "./test/test_logic_simple/test_logic_simple.cpp"; the
 fi
 echo ""
 
+# Test de compilation JwtValidator (smoke)
+echo "==============================================="
+((total_tests++))
+if ! run_test "test_jwt_validation" "./test/test_jwt_validation/test_jwt_validation.cpp" "./src/components/AuthConfig.cpp ./src/components/JwtValidator.cpp"; then
+     ((failed_tests++))
+fi
+echo ""
 # Test AuthConfig
 echo "==============================================="
 ((total_tests++))
-if ! run_test "test_auth_config" "./test/test_auth_config/test_auth_config.cpp"; then
+if ! run_test "test_auth_config" "./test/test_auth_config/test_auth_config.cpp" "./src/components/AuthConfig.cpp"; then
     ((failed_tests++))
 fi
 echo ""

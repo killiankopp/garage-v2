@@ -139,6 +139,8 @@ curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
 - Toutes les tentatives d'authentification sont loggées
 - Affichage de l'IP client et du résultat (succès/échec)
 - Les erreurs détaillées sont loggées pour le debugging
+- Pour les actions non autorisées, le token JWT n'est plus envoyé en clair : seules les 20 premières et 20 dernières
+  positions du token sont conservées (ex: `eyJhbGciOiJSUzI...KUb5`), réduisant la taille du message et le risque d'exposition.
 
 ## Tests hors ESP32
 

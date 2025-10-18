@@ -1,6 +1,9 @@
 #include "JwtValidator.h"
 
 #include <cstdio>
+#if defined(ARDUINO) && !defined(UNIT_TEST)
+#include <WiFiClientSecure.h>
+#endif
 
 JwtValidator::JwtValidator(AuthConfig* authConfig) : _authConfig(authConfig) {
 }
@@ -23,7 +26,20 @@ ValidationResult JwtValidator::validateToken(const String& token) {
     const String clientSecret = _authConfig->getKeycloakClientSecret();
     const String introspectionUrl = buildIntrospectionUrl();
 
+    // Initialize HTTP client with proper transport (HTTP or HTTPS)
+    if (introspectionUrl.startsWith("https://")) {
+#if defined(ARDUINO) && !defined(UNIT_TEST)
+    WiFiClientSecure secure;
+#if KEYCLOAK_TLS_INSECURE
+    secure.setInsecure(); // Dev mode: disable certificate validation
+#endif
+    _httpClient.begin(secure, introspectionUrl);
+#else
     _httpClient.begin(introspectionUrl);
+#endif
+    } else {
+    _httpClient.begin(introspectionUrl);
+    }
 
     if (hasClientSecret) {
         _httpClient.setAuthorization(clientId.c_str(), clientSecret.c_str());
@@ -59,8 +75,19 @@ ValidationResult JwtValidator::validateToken(const String& token) {
 }
 
 String JwtValidator::buildIntrospectionUrl() const {
-    String url = "http://" + _authConfig->getKeycloakServerUrl();
-    url += "/realms/" + _authConfig->getKeycloakRealm();
+    String base = _authConfig->getKeycloakServerUrl();
+    // If user provided full URL with scheme, keep it; otherwise default to http://
+    if (!(base.startsWith("http://") || base.startsWith("https://"))) {
+        base = String("http://") + base;
+    }
+    // Trim trailing slashes
+    while (base.endsWith("/")) {
+        base.remove(base.length() - 1);
+    }
+
+    String url = base;
+    url += "/realms/";
+    url += _authConfig->getKeycloakRealm();
     url += "/protocol/openid-connect/token/introspect";
     return url;
 }

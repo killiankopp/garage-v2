@@ -3,6 +3,20 @@
 #include "EmqxLogger.h"
 #include <WiFi.h>
 
+namespace {
+    // Truncate a potentially long token to first 20 + "..." + last 20 characters
+    String truncateToken(const String& token) {
+        const int keep = 20;
+        int len = token.length();
+        if (len <= keep * 2) {
+            return token;
+        }
+        String head = token.substring(0, keep);
+        String tail = token.substring(len - keep);
+        return head + String("...") + tail;
+    }
+}
+
 EmqxLogger::EmqxLogger(const String& brokerHost, int brokerPort, const String& username, const String& password,
                        const String& clientId, const String& topic, const String& unauthorizedTopic)
     : _brokerHost(brokerHost), _brokerPort(brokerPort), _username(username), _password(password),
@@ -84,12 +98,15 @@ void EmqxLogger::logAuthorizedAction(const String& action, const String& sub, co
 }
 
 void EmqxLogger::logUnauthorizedAction(const String& action, const String& sub, const String& name, const String& token) {
+    // Masquer la majorité du token pour réduire la taille et améliorer la sécurité
+    String maskedToken = truncateToken(token);
+
     GateActionLog log = {
         .action = action,
         .sub = sub,
         .name = name,
         .authorized = false,
-        .token = token
+        .token = maskedToken
     };
     
     String message = buildMessage(log);

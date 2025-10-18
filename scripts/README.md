@@ -55,6 +55,31 @@ Options utiles :
 - `--skip-introspection` : ne faire que la récupération du token
 - `--insecure` : autoriser les certificats auto-signés (dev seulement)
 
+### `validate_token.sh` - Introspecter un token fourni
+
+Permet de tester un JWT exact (comme celui que vous copiez depuis votre navigateur) contre Keycloak avant de l'envoyer à l'ESP32 :
+
+```bash
+source ./scripts/load_env.sh
+./scripts/validate_token.sh "<VOTRE_JWT>"
+```
+
+Options : `--insecure` pour TLS auto-signé.
+
+### `test_emqx.py` - Publier vers EMQX
+
+Publie un message de test sur EMQX en utilisant les variables du `.env` (chargez-les avec `source scripts/load_env.sh`).
+
+```bash
+python3 scripts/test_emqx.py --verify
+```
+
+Avant la première utilisation, installez la dépendance Python:
+
+```bash
+pip install -r scripts/requirements.txt
+```
+
 ## 🔄 Migration depuis les anciens scripts
 
 ### Ancien usage → Nouveau usage
