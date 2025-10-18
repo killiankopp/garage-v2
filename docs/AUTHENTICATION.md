@@ -2,6 +2,29 @@
 
 Ce projet implémente un système d'authentification basé sur les tokens JWT validés par Keycloak pour protéger les routes sensibles du système de contrôle de garage.
 
+## ⚠️ Prérequis important : Synchronisation horaire
+
+L'ESP32 **doit** avoir une horloge synchronisée via NTP pour valider correctement les JWT (validation des timestamps `exp` et `iat`).
+
+**Au démarrage, l'ESP32 :**
+
+- Se connecte au WiFi
+- Synchronise automatiquement son horloge avec `pool.ntp.org`
+- Affiche l'heure actuelle dans les logs
+
+**Si la synchro échoue**, Keycloak rejettera tous les tokens car l'ESP32 pensera qu'ils sont expirés.
+
+**Vérification dans les logs :**
+
+```log
+Time synchronized: 2025-10-18 14:30:00 UTC (timestamp: 1729260600)
+[Auth] Current ESP32 time: 1729260600 (Fri Oct 18 14:30:00 2025)
+[Auth] JWT Claims:
+  exp: 1776336504 (expires in 47076904 seconds)
+```
+
+Si `expires in` est **négatif** → le token est considéré comme expiré.
+
 ## Architecture
 
 L'authentification suit le principe de responsabilité unique (SRP) avec les composants suivants :
