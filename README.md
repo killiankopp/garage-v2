@@ -11,7 +11,9 @@ Contrôleur intelligent de portail basé sur ESP32 avec API REST, surveillance d
 ## � Démarrage rapide
 
 ### 1. Configuration
+
 Créez un fichier `.env` à la racine :
+
 ```bash
 WIFI_SSID=VotreSSID
 WIFI_PASSWORD=VotrePassword
@@ -79,7 +81,7 @@ pio test -e native
 
 ### Câblage des capteurs
 
-```
+```text
 Capteur "FERMÉ":
 ├─ Une borne → GPIO 18
 └─ Autre borne → GND
@@ -118,6 +120,7 @@ Toutes les routes retournent du JSON avec le même format.
 ## 📋 Exemples de réponses
 
 ### Portail fermé au repos
+
 ```json
 {
   "status": "closed",
@@ -129,6 +132,7 @@ Toutes les routes retournent du JSON avec le même format.
 ```
 
 ### Pendant une ouverture
+
 ```json
 {
   "status": "opening",
@@ -142,6 +146,7 @@ Toutes les routes retournent du JSON avec le même format.
 ```
 
 ### Portail ouvert avec auto-fermeture
+
 ```json
 {
   "status": "open",
@@ -155,6 +160,7 @@ Toutes les routes retournent du JSON avec le même format.
 ```
 
 ### Pendant une fermeture
+
 ```json
 {
   "status": "closing",
@@ -168,6 +174,7 @@ Toutes les routes retournent du JSON avec le même format.
 ```
 
 ### Position indéterminée
+
 ```json
 {
   "status": "unknown",
@@ -179,6 +186,7 @@ Toutes les routes retournent du JSON avec le même format.
 ```
 
 ### Timeout d'opération (alerte)
+
 ```json
 {
   "status": "opening",
@@ -192,6 +200,7 @@ Toutes les routes retournent du JSON avec le même format.
 ```
 
 ### Portail déjà ouvert (commande ignorée)
+
 ```json
 {
   "status": "open",
@@ -216,18 +225,21 @@ const unsigned long AUTO_CLOSE_DELAY = 180000; // 3 minutes auto-fermeture
 
 ## 🔒 Configuration WiFi sécurisée
 
-### ⚠️ Important 
+### ⚠️ Important
+
 Le fichier `platformio.ini` est versionné sur Git, donc **JAMAIS de secrets dedans !**
 
 ### Configuration
 
 1. **Créez le fichier `.env`** à la racine du projet (ignoré par Git) :
+
 ```env
 WIFI_SSID=VotreSSID
 WIFI_PASSWORD=VotreMotDePasse
 ```
 
-2. **Utilisez le script de build** qui charge automatiquement le `.env` :
+1. **Utilisez le script de build** qui charge automatiquement le `.env` :
+
 ```bash
 # Compilation
 ./build.sh
@@ -262,7 +274,7 @@ pio device monitor
 
 ## � Organisation du projet
 
-```
+```text
 garage-v2/
 ├── src/                     # Code source ESP32
 │   ├── main.cpp
@@ -311,6 +323,7 @@ curl http://[IP_ESP32]/gate/close
 ## 🐛 Débogage
 
 Consultez la sortie série pour le monitoring :
+
 - Changements d'état détectés
 - Démarrage des opérations
 - Déclenchement des timeouts

@@ -17,6 +17,7 @@ Ce document décrit la migration du système de logging de Kafka vers EMQX MQTT.
 ### 3. Configuration
 
 #### Anciennes variables d'environnement (supprimées)
+
 ```bash
 KAFKA_BROKER_URL=http://kafka.example.com:8082
 KAFKA_TOPIC=garage-events
@@ -24,6 +25,7 @@ KAFKA_UNAUTHORIZED_TOPIC=garage-unauthorized
 ```
 
 #### Nouvelles variables d'environnement
+
 ```bash
 EMQX_BROKER_HOST=emqx.amazone.lan
 EMQX_BROKER_PORT=1883
@@ -75,6 +77,7 @@ EMQX_UNAUTHORIZED_TOPIC=garage/unauthorized
 ## Tests
 
 Les tests ont été mis à jour pour valider :
+
 - Configuration EMQX
 - Connexion MQTT
 - Publication des messages
