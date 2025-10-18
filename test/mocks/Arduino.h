@@ -5,19 +5,37 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 
 class String {
 public:
     String() = default;
     String(const char* value) : _value(value ? value : "") {}
     String(const std::string& value) : _value(value) {}
+    String(int value) : _value(std::to_string(value)) {}
+    String(unsigned int value) : _value(std::to_string(value)) {}
+    String(long value) : _value(std::to_string(value)) {}
+    String(unsigned long value) : _value(std::to_string(value)) {}
+    String(float value) : _value(std::to_string(value)) {}
+    String(double value) : _value(std::to_string(value)) {}
 
     bool isEmpty() const { return _value.empty(); }
     const char* c_str() const { return _value.c_str(); }
     std::size_t length() const { return _value.length(); }
+    int toInt() const { 
+        try {
+            return std::stoi(_value);
+        } catch (...) {
+            return 0;
+        }
+    }
 
     String operator+(const String& other) const {
         return String(_value + other._value);
+    }
+    
+    String operator+(const char* other) const {
+        return String(_value + (other ? other : ""));
     }
 
     String& operator=(const String& other) {
@@ -38,6 +56,12 @@ public:
     }
 
     bool operator!=(const char* other) const { return !(*this == other); }
+    
+    // Conversion operator for std::ostream
+    friend std::ostream& operator<<(std::ostream& os, const String& str) {
+        os << str._value;
+        return os;
+    }
 
 private:
     std::string _value;

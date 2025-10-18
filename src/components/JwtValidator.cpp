@@ -229,21 +229,25 @@ void JwtValidator::decodeAndLogJwtClaims(const String& token) {
     }
     
     String payload = token.substring(firstDot + 1, secondDot);
+    Serial.println("[Auth] JWT payload (base64) length: " + String(payload.length()));
     
     // Base64 decode the payload
     String decodedPayload = base64Decode(payload);
     
     if (decodedPayload.isEmpty()) {
-        Serial.println("[Auth] Warning: Failed to decode JWT payload");
+        Serial.println("[Auth] Warning: Failed to decode JWT payload (empty result)");
         return;
     }
+    
+    Serial.println("[Auth] Decoded payload length: " + String(decodedPayload.length()));
+    Serial.println("[Auth] Decoded payload preview: " + decodedPayload.substring(0, 100));
     
     // Parse JSON claims
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, decodedPayload);
     
     if (error) {
-        Serial.println("[Auth] Warning: Failed to parse JWT claims JSON");
+        Serial.println("[Auth] Warning: Failed to parse JWT claims JSON: " + String(error.c_str()));
         return;
     }
     
@@ -299,33 +303,39 @@ String JwtValidator::base64Decode(const String& input) {
         padded += '=';
     }
     
-    // Replace URL-safe characters
-    padded.replace('-', '+');
-    padded.replace('_', '/');
+    // Replace URL-safe characters with standard base64
+    for (size_t i = 0; i < padded.length(); i++) {
+        char c = padded.charAt(i);
+        if (c == '-') padded.setCharAt(i, '+');
+        else if (c == '_') padded.setCharAt(i, '/');
+    }
     
-    // Simple base64 decode
-    const char* b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    // Base64 decode table
+    static const char b64chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     String decoded;
     decoded.reserve((padded.length() * 3) / 4);
     
-    for (size_t i = 0; i < padded.length(); i += 4) {
-        uint32_t val = 0;
-        int validChars = 0;
+    uint32_t buffer = 0;
+    int bitsCollected = 0;
+    
+    for (size_t i = 0; i < padded.length(); i++) {
+        char c = padded.charAt(i);
+        if (c == '=') break;
         
-        for (int j = 0; j < 4 && (i + j) < padded.length(); j++) {
-            char c = padded.charAt(i + j);
-            if (c == '=') break;
-            
-            const char* pos = strchr(b64chars, c);
-            if (!pos) continue;
-            
-            val = (val << 6) | (pos - b64chars);
-            validChars++;
+        const char* pos = strchr(b64chars, c);
+        if (!pos) {
+            Serial.println("[Auth] Base64 decode: invalid character at position " + String(i));
+            continue;
         }
         
-        if (validChars >= 2) decoded += (char)((val >> ((validChars - 2) * 6 + 2)) & 0xFF);
-        if (validChars >= 3) decoded += (char)((val >> ((validChars - 3) * 6 + 2)) & 0xFF);
-        if (validChars >= 4) decoded += (char)((val >> 2) & 0xFF);
+        int value = pos - b64chars;
+        buffer = (buffer << 6) | value;
+        bitsCollected += 6;
+        
+        if (bitsCollected >= 8) {
+            bitsCollected -= 8;
+            decoded += (char)((buffer >> bitsCollected) & 0xFF);
+        }
     }
     
     return decoded;
