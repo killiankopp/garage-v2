@@ -24,7 +24,7 @@ run_test() {
     echo -e "${YELLOW}Compilation de $test_name...${NC}"
     
     # Compiler le test
-    g++ -std=c++17 -I./src -I./test -DUNIT_TEST \
+    g++ -std=c++17 -I./src -I./test -I./test/mocks -DUNIT_TEST \
         $test_file \
         -o $TEST_DIR/$test_name
     
@@ -64,6 +64,22 @@ echo ""
 echo "==============================================="
 ((total_tests++))
 if ! run_test "test_logic" "./test/test_logic_simple/test_logic_simple.cpp"; then
+    ((failed_tests++))
+fi
+echo ""
+
+# Test AuthConfig
+echo "==============================================="
+((total_tests++))
+if ! run_test "test_auth_config" "./test/test_auth_config/test_auth_config.cpp"; then
+    ((failed_tests++))
+fi
+echo ""
+
+# Test de configuration d'authentification
+echo "==============================================="
+((total_tests++))
+if ! run_test "test_auth_config" "./test/test_auth_config/test_auth_config.cpp"; then
     ((failed_tests++))
 fi
 echo ""

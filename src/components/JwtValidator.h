@@ -27,6 +27,7 @@ private:
     String buildIntrospectionUrl() const;
     bool parseTokenResponse(const String& response, ValidationResult& result);
     String extractBearerToken(const String& authHeader);
+    String urlEncode(const String& value) const;
 };
 
 #endif // JWT_VALIDATOR_H

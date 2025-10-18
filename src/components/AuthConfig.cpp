@@ -26,6 +26,12 @@ void AuthConfig::loadFromEnvironment() {
     #else
         _keycloakClientId = "REPLACE_ME";
     #endif
+
+    #ifdef KEYCLOAK_CLIENT_SECRET
+        _keycloakClientSecret = String(KEYCLOAK_CLIENT_SECRET);
+    #else
+        _keycloakClientSecret = "";
+    #endif
     
     // Enable auth only if server URL is configured
     _authEnabled = !_keycloakServerUrl.isEmpty() && _keycloakServerUrl != "disabled";
@@ -34,6 +40,11 @@ void AuthConfig::loadFromEnvironment() {
         Serial.println("Auth enabled with Keycloak server: " + _keycloakServerUrl);
         Serial.println("Realm: " + _keycloakRealm);
         Serial.println("Client ID: " + _keycloakClientId);
+        Serial.println("Client Secret configured: " + String(_keycloakClientSecret.isEmpty() ? "no" : "yes"));
+
+        if (_keycloakClientSecret.isEmpty()) {
+            Serial.println("Warning: KEYCLOAK_CLIENT_SECRET not set. Confidential clients will fail introspection.");
+        }
     } else {
         Serial.println("Authentication disabled");
     }

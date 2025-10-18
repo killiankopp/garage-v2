@@ -20,6 +20,7 @@ WIFI_PASSWORD=VotrePassword
 KEYCLOAK_SERVER_URL=https://your-keycloak-server
 KEYCLOAK_REALM=your-realm
 KEYCLOAK_CLIENT_ID=your-client-id
+KEYCLOAK_CLIENT_SECRET=your-client-secret
 EMQX_BROKER_HOST=emqx.amazone.lan
 EMQX_BROKER_PORT=1883
 EMQX_USERNAME=
@@ -57,6 +58,19 @@ EMQX_UNAUTHORIZED_TOPIC=garage/unauthorized
 # Tests spécifiques
 pio test -e native
 ```
+
+#### Vérifier Keycloak avant flash
+
+```bash
+source scripts/load_env.sh
+python3 scripts/test_keycloak.py
+```
+
+Options utiles :
+
+- `--token <jeton>` : fournir un token existant à introspecter
+- `--skip-introspection` : ne faire que la récupération du token
+- `--insecure` : ignorer la vérification TLS (environnement de dev uniquement)
 
 ## �🔧 Fonctionnalités
 

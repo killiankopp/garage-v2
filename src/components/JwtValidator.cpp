@@ -1,5 +1,7 @@
 #include "JwtValidator.h"
 
+#include <cstdio>
+
 JwtValidator::JwtValidator(AuthConfig* authConfig) : _authConfig(authConfig) {
 }
 
@@ -16,12 +18,26 @@ ValidationResult JwtValidator::validateToken(const String& token) {
         return result;
     }
     
-    _httpClient.begin(buildIntrospectionUrl());
+    const String clientId = _authConfig->getKeycloakClientId();
+    const bool hasClientSecret = _authConfig->hasKeycloakClientSecret();
+    const String clientSecret = _authConfig->getKeycloakClientSecret();
+    const String introspectionUrl = buildIntrospectionUrl();
+
+    _httpClient.begin(introspectionUrl);
+
+    if (hasClientSecret) {
+        _httpClient.setAuthorization(clientId.c_str(), clientSecret.c_str());
+    }
+
     _httpClient.addHeader("Content-Type", "application/x-www-form-urlencoded");
     
     // Préparer la requête d'introspection
-    String postData = "token=" + token;
-    postData += "&client_id=" + _authConfig->getKeycloakClientId();
+    String postData = "token=" + urlEncode(token);
+    postData += "&client_id=" + urlEncode(clientId);
+    
+    if (hasClientSecret) {
+        postData += "&client_secret=" + urlEncode(clientSecret);
+    }
     
     int httpCode = _httpClient.POST(postData);
     
@@ -79,4 +95,25 @@ String JwtValidator::extractBearerToken(const String& authHeader) {
         return authHeader.substring(7);
     }
     return "";
+}
+
+String JwtValidator::urlEncode(const String& value) const {
+    String encoded;
+    encoded.reserve(value.length() * 3);
+    for (size_t i = 0; i < value.length(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(value.charAt(i));
+        if ((c >= 'a' && c <= 'z') ||
+            (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') ||
+            c == '-' || c == '_' || c == '.' || c == '~') {
+            encoded += static_cast<char>(c);
+        } else if (c == ' ') {
+            encoded += '+';
+        } else {
+            char buf[4];
+            snprintf(buf, sizeof(buf), "%%%02X", c);
+            encoded += buf;
+        }
+    }
+    return encoded;
 }
